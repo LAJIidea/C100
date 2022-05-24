@@ -1,0 +1,94 @@
+--------------------------------------------------
+Prog            :=      Expr
+Expr            :=      AddExpr
+AddExpr         :=      MultiExpr
+                :=      AddExpr + MultiExpr
+                :=      AddExpr - MultiExpr
+MultiExpr       :=      PrimaryExpr
+                :=      MultiExpr * PrimaryExpr
+                :=      MultiExpr / PrimaryExpr
+PrimaryExpr     :=      Num
+--------------------------------------------------
+Prog            :=      Expr
+Expr            :=      AddExpr
+AddExpr         :=      MultiExpr
+                :=      AddExpr + MultiExpr
+                :=      AddExpr - MultiExpr
+MultiExpr       :=      PrimaryExpr
+                :=      MultiExpr * PrimaryExpr
+                :=      MultiExpr / PrimaryExpr
+PrimaryExpr     :=      Num
+                :=      (Expr)
+---------------------------------------------------
+Prog            :=      Stmt*
+Stmt            :=      Expr ';'
+Expr            :=      AddExpr
+                :=      AddExpr = Expr
+AddExpr         :=      MultiExpr
+                :=      AddExpr + MultiExpr
+                :=      AddExpr - MultiExpr
+MultiExpr       :=      PrimaryExpr
+                :=      MultiExpr * PrimaryExpr
+                :=      MultiExpr / PrimaryExpr
+PrimaryExpr     :=      Num
+                :=      (Expr)
+                :=      Id
+----------------------------------------------------
+Prog            :=      Function*
+Function        :=      DeclarationSpec Declarator  "{" Stmt: "}"
+Declaration     :=      char | short | int | long | StructOrUnionDecl
+StructUnionDecl :=      (struct|union) identifier? "{" StructMember* "}"
+                :=      (struct|union) identifier
+StructMember    :=      DeclarationSpec Declarator (, Declarator)* ";"
+Declarator      :=      (*)* identifier TypeSuffix
+TypeSuffix      :=      "(" FuncArg? ")"
+                :=      "[" Number "]"+
+                :=      ε
+FuncArg         :=      DeclarationSpec Declarator (, DeclarationSpec Declarator)*
+Stmt            :=      Expr? ';'
+                :=      IfStmt
+                :=      WhileStmt
+                :=      DoWhileStmt
+                :=      ForStmt
+                :=      BlockStmt
+                :=      ReturnStmt
+                :=      DeclarationStmt
+IfStmt          :=      if "(" Expr ")" Stmt
+                :=      if "(" Expr ")" Stmt else Stmt
+WhileStmt       :=      while   "(" Expr ")" Stmt
+DoWhile         :=      do Stmt while "(" Expr ")" ";"
+ForStmt         :=      for "(" Expr?; Expr?; Expr? ")" Stmt
+BlockStmt       :=      "{" Stmt* "}"
+ReturnStmt      :=      return Expr ";"
+DeclarationStmt :=      DeclarationSpec Declarator(= Expr)? (, Declarator(= Expr)?)* ";"
+                :=      DeclarationSpec ";"
+Expr            :=      EqualityExpr
+                :=      EqualityExpr = Expr
+EqualityExpr    :=      Equality = Expr
+                :=      RelationalExpr
+                :=      EqualityExpr == RelationalExpr
+                :=      EqualityExpr != relationalExpr
+RelationalExpr  :=      AddExpr
+                :=      RelationalExpr < AddExpr
+                :=      RelationalExpr > AddExpr
+                :=      RelationalExpr <= AddExpr
+                :=      RelationalExpr <= AddExpr
+AddExpr         :=      MultiExpr
+                :=      AddExpr + MultiExpr
+                :=      AddExpr - MultiExpr
+MultiExpr       :=      UnaryExpr
+                :=      MultiExpr * UnaryExpr
+                :=      MultiExpr / UnaryExpr
+UnaryExpr       :=      UnaryOperator UnaryExpr
+                :=      PostfixExpr
+PostfixExpr     :=      PrimaryExpr
+                :=      PrimaryExpr ("[" Expr "]" )
+                :=      PrimaryExpr "(" ArgExprList? ")"
+                :=      PrimaryExpr "." identifier
+                :=      PrimaryExpr "->" identifier
+PrimaryExpr     :=      Num
+                :=      (Expr)
+                :=      Id
+                :=      "({" Stmt+ "})"
+                :=      sizeof UnaryExpr
+ArgExprList     :=      Expr (, Expr)*
