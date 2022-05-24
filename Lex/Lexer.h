@@ -29,7 +29,8 @@ namespace C100 {
         LesserEqual, Period, Arrow, Ellipsis, LongLong, Colon,
 
         Num,
-        Eof
+        Eof,
+        Unknown
     };
 
     struct SourceLocation
@@ -118,7 +119,7 @@ namespace C100 {
 
         void SkipToken(TokenKind kind);
 
-        void Match(TokenKind kind);
+        bool Match(TokenKind kind);
 
         void BeginPeekToken();
 
