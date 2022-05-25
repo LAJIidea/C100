@@ -10,6 +10,7 @@ file(GLOB_RECURSE SRCS main.cpp
         Lex/*.cpp
         Parse/*.cpp
         Basic/*.cpp
+        AST/*.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SRCS})
