@@ -10,6 +10,7 @@ file(GLOB_RECURSE SRCS main.cpp
         Lex/*.cpp
         Parse/*.cpp
         Basic/*.cpp
+        Sema/*.cpp
         AST/*.cpp
 )
 
