@@ -94,14 +94,52 @@ namespace C100
     }
 
     std::shared_ptr<Field> RecordType::FindField(std::string_view id) {
-        return std::shared_ptr<Field>();
+        assert(!id.empty());
+        for (auto &fld : FldList) {
+
+            if (fld->Id == id)
+                return fld;
+
+            if (fld->Id.empty() && fld->Ty->IsRecordTy()) {
+                auto rty = std::dynamic_pointer_cast<RecordType>(fld->Ty);
+                std::shared_ptr<Field> res = rty->FindField(id);
+                if (res != nullptr)
+                    return res;
+            }
+        }
+        return nullptr;
     }
 
     void RecordType::FinishLayout(int offset) {
+        if (TyCls == TypeClass::Struct) {
+            int initOffset = offset;
+            for (auto &fld : FldList) {
+                offset = AlignTo(offset, fld->Ty->Align);
+                fld->Offset = offset;
 
+                if (fld->Id.empty() && fld->Ty->IsRecordTy()) {
+                    auto rty = std::dynamic_pointer_cast<RecordType>(fld->Ty);
+                    rty->FinishLayout(offset);
+                }
+                offset += fld->Ty->Size;
+
+                if (Align < fld->Ty->Align)
+                    Align = fld->Ty->Align;
+            }
+            Size = AlignTo(offset - initOffset, Align);
+        } else {
+            for (auto  &fld : FldList) {
+                fld->Offset = offset;
+                if (Align < fld->Ty->Align)
+                    Align = fld->Ty->Align;
+                if (Size < fld->Ty->Size)
+                    Size = fld->Ty->Size;
+            }
+            Size = AlignTo(Size, Align);
+        }
     }
 
     int AlignTo(int size, int align) {
-        return 0;
+        return (size + align - 1) / align * align;
     }
 }
