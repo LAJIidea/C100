@@ -87,6 +87,15 @@ namespace C100
         void Accept(AstVisitor *visitor) override;
     };
 
+    class NameDeclarator : public Declarator
+    {
+    public:
+        NameDeclarator(std::shared_ptr<Token> tok): Declarator(tok) {
+            Cls = DeclClass::NameDeclarator;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
     class FunctionDeclarator : public Declarator
     {
     public:
@@ -104,7 +113,7 @@ namespace C100
         ArrayDeclarator(std::shared_ptr<Token> tok): Declarator(tok) {
             Cls = DeclClass::ArrayDeclarator;
         }
-        void Accept(AstVisitor *visitor) override
+        void Accept(AstVisitor *visitor) override;
     };
 
     class Initializer : public DeclBase
@@ -135,6 +144,136 @@ namespace C100
         void Accept(AstVisitor *visitor) override;
     };
 
+    class StructDeclarator : public DeclBase
+    {
+    public:
+        std::string_view Id;
+        std::shared_ptr<Type> BaseTy;
+        std::shared_ptr<Declarator> Dec;
+        std::shared_ptr<RecordType> RecordTy;
+        StructDeclarator(std::shared_ptr<Token> tok): DeclBase(tok) {
+            Cls = DeclClass::StructDeclarator;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
+    class StructDeclaration : public DeclBase
+    {
+    public:
+        std::shared_ptr<DeclSpecifier> Spec;
+        std::shared_ptr<RecordType> RecordTy;
+        std::list<std::shared_ptr<StructDeclarator>> DecList;
+        StructDeclaration(std::shared_ptr<Token> tok): DeclBase(tok) {
+            Cls = DeclClass::StructDeclaration;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
+    class StructSpecifier : public DeclBase
+    {
+    public:
+        std::string_view Id;
+        bool HasLBrace{false};
+        std::list<std::shared_ptr<StructDeclaration>> DeclList;
+        StructSpecifier(std::shared_ptr<Token> tok): DeclBase(tok) {
+
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
+    class EnumDeclarator : public DeclBase
+    {
+    public:
+        std::string_view Id;
+        std::shared_ptr<ExprNode> Expr;
+        EnumDeclarator(std::shared_ptr<Token> tok): DeclBase(tok) {
+            Cls = DeclClass::EnumDeclarator;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
+    class EnumSpecifier : public DeclBase
+    {
+    public:
+        std::string_view Id;
+        std::list<std::shared_ptr<EnumDeclarator>> DecList;
+        EnumSpecifier(std::shared_ptr<Token> tok): DeclBase(tok) {
+            Cls = DeclClass::EnumSpecifier;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
+    class Declaration : public DeclBase
+    {
+    public:
+        bool IsLocalDecl{true};
+        std::shared_ptr<DeclSpecifier> Spec;
+        std::list<std::shared_ptr<InitDeclarator>> DecList;
+        Declaration(std::shared_ptr<Token> tok): DeclBase(tok) {
+            Cls = DeclClass::Declaration;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
+    class ParamDeclaration : public DeclBase
+    {
+    public:
+        std::shared_ptr<Declarator> Dec;
+        std::shared_ptr<FunctionType> FunTy;
+        std::shared_ptr<DeclSpecifier> Spec;
+        ParamDeclaration(std::shared_ptr<Token> tok): DeclBase(tok) {
+            Cls = DeclClass::ParamDeclaration;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
+    class ParamTypeList : public DeclBase
+    {
+    public:
+        bool HaveEllipsis{false};
+        std::shared_ptr<FunctionType> FunTy;
+        std::list<std::shared_ptr<ParamDeclaration>> ParamDecl;
+        ParamTypeList(std::shared_ptr<Token> tok): DeclBase(tok) {
+            Cls = DeclClass::ParamTypeList;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
+    struct Label
+    {
+        bool Defined{false};
+        std::string_view Id;
+        Label(std::string_view id): Id(id) {}
+    };
+
+    class Symbol;
+    class Function : public DeclBase
+    {
+    public:
+        std::string_view FuncName;
+        std::shared_ptr<Symbol> FSym;
+        std::shared_ptr<Declarator> Dec;
+        std::stack<StmtNode *> LoopStmts;
+        std::stack<StmtNode *> Breakables;
+        std::shared_ptr<DeclSpecifier> Spec;
+        std::shared_ptr<BlockStmtNode> BlockStmt;
+        std::stack<SwitchStmtNode *> SwitchStmts;
+        std::unordered_map<std::string_view ,std::shared_ptr<Label>> LabelsMap;
+        Function(std::shared_ptr<Token> tok): DeclBase(tok) {
+            Cls = DeclClass::Function;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
+
+    class TranslationUnit : public DeclBase
+    {
+    public:
+        std::list<std::shared_ptr<DeclBase>> ExtDecl;
+        TranslationUnit(std::shared_ptr<Token> tok): DeclBase(tok) {
+            Cls = DeclClass::TranslationUnit;
+        }
+        void Accept(AstVisitor *visitor) override;
+    };
 }
 
 #endif //C100_DECL_H

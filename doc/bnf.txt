@@ -36,7 +36,7 @@ PrimaryExpr     :=      Num
 ----------------------------------------------------
 Prog            :=      Function*
 Function        :=      DeclarationSpec Declarator  "{" Stmt: "}"
-Declaration     :=      char | short | int | long | StructOrUnionDecl
+DeclarationSpec :=      char | short | int | long | StructOrUnionDecl
 StructUnionDecl :=      (struct|union) identifier? "{" StructMember* "}"
                 :=      (struct|union) identifier
 StructMember    :=      DeclarationSpec Declarator (, Declarator)* ";"

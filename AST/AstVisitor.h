@@ -25,7 +25,7 @@ namespace C100
     class Initializer;
     class StructSpecifier;
     class StructDeclaration;
-    class StructDeclartor;
+    class StructDeclarator;
     class EnumSpecifier;
     class EnumDeclarator;
     class DeclSpecToken;
@@ -62,21 +62,21 @@ namespace C100
     class AstVisitor {
     public:
         virtual ~AstVisitor() {}
-        virtual void VisitTranslationUnitNode(TranslationUnit *node) {};
-        virtual void VisitFunctionNode(Function *node) {};
-        virtual void VisitDeclarationNode(Declaration *node) {};
-        virtual void VisitDeclSpecifierNode(DeclSpecifier *node) {};
-        virtual void VisitPointerDeclaratorNode(PointerDeclarator *node) {};
-        virtual void VisitNameDeclaratorNode(NameDeclarator *node) {};
-        virtual void VisitFuncDeclaratorNode(FunctionDeclarator *node) {};
-        virtual void VisitArrayDeclaratorNode(ArrayDeclarator *node) {};
-        virtual void VisitInitDeclaratorNode(InitDeclarator *node) {};
-        virtual void VisitInitializerNode(Initializer *node) {};
-        virtual void VisitParamTypeListNode(ParamTypeList *node) {};
-        virtual void VisitParamDeclarationNode(ParamDeclaration *node) {};
-        virtual void VisitStructSpecifierNode(StructSpecifier *node) {};
-        virtual void VisitStructDeclarationNode(StructDeclaration *node) {};
-        virtual void VisitStructDeclaratorNode(StructDeclartor *node) {};
+        virtual void VisitorTranslationUnitNode(TranslationUnit *node) {};
+        virtual void VisitorFunctionNode(Function *node) {};
+        virtual void VisitorDeclarationNode(Declaration *node) {};
+        virtual void VisitorDeclSpecifierNode(DeclSpecifier *node) {};
+        virtual void VisitorPointerDeclaratorNode(PointerDeclarator *node) {};
+        virtual void VisitorNameDeclaratorNode(NameDeclarator *node)  {};
+        virtual void VisitorFuncDeclaratorNode(FunctionDeclarator *node) {};
+        virtual void VisitorArrayDeclaratorNode(ArrayDeclarator *node)  {};
+        virtual void VisitorInitDeclaratorNode(InitDeclarator *node)  {};
+        virtual void VisitorInitializerNode(Initializer *node)  {};
+        virtual void VisitorParamTypeListNode(ParamTypeList *node)  {};
+        virtual void VisitorParamDeclarationNode(ParamDeclaration *node)  {};
+        virtual void VisitorStructSpecifierNode(StructSpecifier *node)  {};
+        virtual void VisitorStructDeclarationNode(StructDeclaration *node)  {};
+        virtual void VisitorStructDeclaratorNode(StructDeclarator *node)  {};
         virtual void VisitorEnumSpecifierNode(EnumSpecifier *node)  {};
         virtual void VisitorEnumDeclaratorNode(EnumDeclarator *node)  {};
         virtual void VisitorDeclSpecTokenNode(DeclSpecToken *node)  {};

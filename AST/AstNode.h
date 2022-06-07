@@ -20,7 +20,7 @@ namespace C100 {
     public:
         std::shared_ptr<Token> Tok;
         virtual ~AstNode() {}
-        AstNode(std::shared_ptr<Token> tok): Tok(std::move(tok)) {}
+        AstNode(std::shared_ptr<Token> tok): Tok(tok) {}
         virtual void Accept(AstVisitor *visitor) = 0;
     };
 

@@ -26,7 +26,7 @@ namespace C100
         return nullptr;
     }
 
-    std::shared_ptr<Symbol> SymbolTable::FindTah(std::string_view id) {
+    std::shared_ptr<Symbol> SymbolTable::FindTag(std::string_view id) {
         for (auto it = SymTab.rbegin(); it != SymTab.rend(); ++it) {
             std::shared_ptr<Env> env = *it;
             if (env->TagEnv.find(id) != env->TagEnv.end()) {

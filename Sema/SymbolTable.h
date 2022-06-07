@@ -33,7 +33,7 @@ namespace C100
 
         std::shared_ptr<Symbol> FindVar(std::string_view id);
 
-        std::shared_ptr<Symbol> FindTah(std::string_view id);
+        std::shared_ptr<Symbol> FindTag(std::string_view id);
 
         std::shared_ptr<Symbol> AddTag(std::string_view id, std::shared_ptr<Type> ty, SourceLocation loc);
 
