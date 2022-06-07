@@ -492,20 +492,50 @@ void Sema::VisitorNumExprNode(NumExpr *node) {
 void Sema::VisitorVarExprNode(VarExpr *node) {
     std::shared_ptr<Symbol> sym = SymTable.FindVar(node->VarName);
     if (!sym) {
-
+        SemaDiag(node->Tok->Location, "Undeclared variable");
     }
+    node->Sym = sym;
+    node->Ty = sym->Ty;
 }
 
 void Sema::VisitorFuncCallExprNode(FuncCallExpr *node) {
-
+    std::shared_ptr<Symbol> sym = SymTable.FindVar(node->FuncName);
+    if (sym == nullptr) {
+        SemaDiag(node->Tok->Location, "Undeclared function");
+    }
+    for (auto &arg : node->Args) {
+        arg->Accept(this);
+    }
+    node->Ty = Type::LongTy;
 }
 
 void Sema::VisitorStmtExprNode(StmtExpr *node) {
+    SymTable.EnterScope();
 
+    for (auto &decl : node->Decls) {
+        decl->Accept(this);
+    }
+
+    for (auto &stmt : node->Stmts) {
+        stmt->Accept(this);
+    }
+
+    SymTable.ExitScope();
 }
 
 void Sema::VisitorMemberExprNode(MemberExpr *node) {
+    node->Lhs->Accept(this);
 
+    if (!node->Lhs->Ty->IsRecordTy())
+        SemaDiag(node->Tok->Location, "Invalid left operands");
+
+    auto rty = std::dynamic_pointer_cast<RecordType>(node->Lhs->Ty);
+    std::shared_ptr<Field> fld = rty->FindField(node->RhsName);
+    if (fld == nullptr)
+        SemaDiag(node->Tok->Location, "haven't the field");
+
+    node->Ty = fld->Ty;
+    node->Fld = fld;
 }
 
 void Sema::CheckStorageSpecifier(DeclSpecifier *declSpecifier) {
