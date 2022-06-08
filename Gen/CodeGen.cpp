@@ -3,3 +3,410 @@
 //
 
 #include "CodeGen.h"
+#include "Expr.h"
+#include "Decl.h"
+#include "Stmt.h"
+#include "Diag.h"
+#include "SymbolTable.h"
+#include <cassert>
+
+using namespace C100;
+
+void CodeGen::VisitorTranslationUnitNode(TranslationUnit *node) {
+    for (auto &f : node->ExtDecl) {
+        f->Accept(this);
+    }
+}
+
+void CodeGen::VisitorFunctionNode(Function *node) {
+    printf("\t.text\n");
+    CurrentFuncName = node->FuncName;
+    printf("\t.globl %s\n", CurrentFuncName.data());
+    printf("%s:\n", CurrentFuncName.data());
+    int offset = 0;
+    for (auto &sym : node->FSym->Locals) {
+        offset += sym->Ty->Size;
+        offset = AlignTo(offset, sym->Ty->Align);
+        sym->Offset = -offset;
+    }
+
+    offset = AlignTo(offset, 16);
+
+    printf("\tpush %%rbp\n");
+    printf("\tmov %%rsp, %%rbp\n");
+    printf("\tsub $%d, %%rsp\n", offset);
+
+    int i = 0;
+    for (auto &sym : node->FSym->Params) {
+        if (sym->Ty->Size == 1) {
+            printf("\tmov %s, %d(%%rbp)\n", Reg8[i++], sym->Offset);
+        } else if (sym->Ty->Size == 2) {
+            printf("\tmov %s, %d(%%rbp)\n", Reg16[i++], sym->Offset);
+        } else if (sym->Ty->Size == 4) {
+            printf("\tmov %s, %d(%%rbp)\n", Reg32[i++], sym->Offset);
+        } else if (sym->Ty->Size == 8) {
+            printf("\tmov %s, %d(%%rbp)\n", Reg64[i++], sym->Offset);
+        } else {
+            assert(0);
+        }
+    }
+
+    node->BlockStmt->Accept(this);
+
+    printf(".LReturn_%s:\n", CurrentFuncName.data());
+    printf("\tmov %%rbp, %%rsp\n");
+    printf("\tpop %%rbp\n");
+    printf("\tret\n");
+}
+
+void CodeGen::VisitorDeclarationNode(Declaration *node) {
+    if (node->IsLocalDecl) {
+        for (auto &initDec : node->DecList) {
+            if (initDec->Sym->Init != nullptr) {
+                printf("\tlea %d(%%rbp), %%rax\n", initDec->Sym->Offset);
+                Push();
+                initDec->Sym->Init->Expr->Accept(this);
+                Store(initDec->Sym->Ty);
+            }
+        }
+    }
+}
+
+void CodeGen::VisitorExprStmtNode(ExprStmtNode *node) {
+    if (node->Lhs)
+        node->Lhs->Accept(this);
+}
+
+void CodeGen::VisitorIfStmtNode(IfStmtNode *node) {
+    int n = Sequence++;
+    node->Cond->Accept(this);
+    printf("\tcmp $0, %%rax\n");
+    if (node->Else) {
+        printf("\tje .L.else_%d\n", n);
+    } else {
+        printf("\tje .L.end_%d\n", n);
+    }
+
+    node->Then->Accept(this);
+    printf("\tjmp .L.end_%d\n", n);
+
+    if (node->Else) {
+        printf(".L.else_%d:\n", n);
+        node->Else->Accept(this);
+        printf("\tjmp .L.end_%d\n", n);
+    }
+
+    printf(".L.end_%d:\n", n);
+}
+
+void CodeGen::VisitorWhileStmtNode(WhileStmtNode *node) {
+    int n = Sequence++;
+    LabelStack.push(n);
+    printf(".LContinue_%d:\n", n);
+    node->Cond->Accept(this);
+    printf("\tcmp $0, %%rax\n");
+    printf("\tje .LBreak_%d\n", n);
+    node->Then->Accept(this);
+    printf("\tjmp .LContinue_%d\n", n);
+    printf(".LBreak_%d:\n", n);
+    LabelStack.pop();
+}
+
+void CodeGen::VisitorDoWhileStmtNode(DoWhileStmtNode *node) {
+    int n = Sequence++;
+    LabelStack.push(n);
+    printf(".LBegin_%d:\n", n);
+    node->Stmt->Accept(this);
+    printf(".LContinue_%d:\n", n);
+    node->Cond->Accept(this);
+    printf("\tcmp $0, %%rax\n");
+    printf("\tje .LBreak_%d\n", n);
+    printf("\tjmp .LBegin_%d\n", n);
+    printf(".LBreak_%d:\n", n);
+    LabelStack.pop();
+}
+
+void CodeGen::VisitorForStmtNode(ForStmtNode *node) {
+    int n = Sequence++;
+    LabelStack.push(n);
+
+    if (node->InitExpr)
+        node->InitExpr->Accept(this);
+    else if (node->InitDecl) {
+        node->InitDecl->Accept(this);
+    }
+    printf(".LBegin_%d:\n", n);
+    if (node->Cond) {
+        node->Cond->Accept(this);
+        printf("\tcmp $0, %%rax\n");
+        printf("\tje .LBreak_%d\n", n);
+    }
+    node->Stmt->Accept(this);
+    printf(".LContinue_%d:\n", n);
+    if (node->Inc) {
+        node->Inc->Accept(this);
+    }
+    printf("\tjmp .LBegin_%d\n", n);
+    printf(".LBreak_%d:\n", n);
+
+    LabelStack.pop();
+}
+
+void CodeGen::VisitorBlockStmtNode(BlockStmtNode *node) {
+    for (auto &d : node->Decls) {
+        d->Accept(this);
+    }
+    for (auto &s : node->Stmts) {
+        s->Accept(this);
+    }
+}
+
+void CodeGen::VisitorReturnStmtNode(ReturnStmtNode *node) {
+    node->Lhs->Accept(this);
+    printf("\tjmp .LReturn_%s\n", CurrentFuncName.data());
+}
+
+void CodeGen::VisitorBreakStmtNode(BreakStmtNode *node) {
+    printf("\tjmp .LBreak_%d\n", LabelStack.top());
+}
+
+void CodeGen::VisitorContinueStmtNode(ContinueStmtNode *node) {
+    printf("\tjmp .LContinue_%d\n", LabelStack.top());
+}
+
+void CodeGen::VisitorGotoStmtNode(GotoStmtNode *node) {
+    printf("\tjmp .LLabel_%s_%s\n", CurrentFuncName.data(), std::string(node->LabelName).data());
+}
+
+void CodeGen::VisitorLabelStmtNode(LabelStmtNode *node) {
+    printf(".LLabel_%s_%s:\n", CurrentFuncName.data(), std::string(node->LabelName).data());
+    node->Stmt->Accept(this);
+}
+
+void CodeGen::VisitorCaseStmtNode(CaseStmtNode *node) {
+    printf("\t.LCaseLabel_%d:\n", node->Label);
+    node->Stmt->Accept(this);
+}
+
+void CodeGen::VisitorDefaultStmtNode(DefaultStmtNode *node) {
+    printf("\t.LDefaultLabel_%d:\n", node->Label);
+    node->Stmt->Accept(this);
+}
+
+void CodeGen::VisitorSwitchStmtNode(SwitchStmtNode *node) {
+    int seq = Sequence++;
+    LabelStack.push(seq);
+
+    node->Expr->Accept(this);
+    printf("\tmov %%rax, %%rdi\n");
+
+    for (auto &caseStmt : node->CaseStmtList) {
+        caseStmt->Label = Sequence++;
+        caseStmt->Expr->Accept(this);
+        printf("\tcmp %%rax, %%rdi\n");
+        printf("\tje .LCaseLabel_%d\n", caseStmt->Label);
+    }
+
+    if (node->DefaultStmt) {
+        node->DefaultStmt->Label = Sequence++;
+        printf("\tjmp .LDefaultLabel_%d\n", node->DefaultStmt->Label);
+    }
+
+    printf("\tjmp .LBreak_%d\n", seq);
+
+    node->Stmt->Accept(this);
+
+    printf("\t.LBreak_%d:\n", seq);
+    LabelStack.pop();
+}
+
+void CodeGen::VisitorAssignExprNode(AssignExpr *node) {
+    GenAddr(node->Lhs.get());
+    Push();
+    node->Rhs->Accept(this);
+    Store(node->Ty);
+}
+
+void CodeGen::VisitorSizeOfExprNode(SizeOfExpr *node) {
+    printf("\tmov $%d, %%rax\n", node->Ty->Size);
+}
+
+void CodeGen::VisitorBinaryExprNode(BinaryExpr *node) {
+    node->Rhs->Accept(this);
+    Push();
+    node->Lhs->Accept(this);
+    Pop("%rdi");
+
+    switch (node->BinOp) {
+        case BinaryOperator::Add:
+            printf("\tadd %%rdi, %%rax\n");
+            break;
+        case BinaryOperator::Sub:
+            printf("\tsub %%rdi, %%rax\n");
+            break;
+        case BinaryOperator::Mul:
+            printf("\timul %%rdi, %%rax\n");
+            break;
+        case BinaryOperator::Div: {
+            printf("\tcqo\n");
+            printf("\tidiv %%rdi\n");
+            break;
+        }
+        case BinaryOperator::Equal: {
+            printf("\tcmp %%rdi, %%rax\n");
+            printf("\tsete %%al\n");
+            printf("\tmovzb %%al, %%rax\n");
+            break;
+        }
+        case BinaryOperator::PipeEqual: {
+            printf("\tcmp %%rdi, %%rax\n");
+            printf("\tsetne %%al\n");
+            printf("\tmovzb %%al, %%rax\n");
+            break;
+        }
+        case BinaryOperator::Greater: {
+            printf("\tcmp %%rdi, %%rax\n");
+            printf("\tsetg %%al\n");
+            printf("\tmovzb %%al, %%rax\n");
+            break;
+        }
+        case BinaryOperator::GreaterEqual: {
+            printf("\tcmp %%rdi, %%rax\n");
+            printf("\tsetge %%al\n");
+            printf("\tmovzb %%al, %%rax\n");
+            break;
+        }
+        case BinaryOperator::Lesser: {
+            printf("\tcmp %%rdi, %%rax\n");
+            printf("\tsetl %%al\n");
+            printf("\tmovzb %%al, %%rax\n");
+            break;
+        }
+        case BinaryOperator::LesserEqual: {
+            printf("\tcmp %%rdi, %%rax\n");
+            printf("\tsetle %%al\n");
+            printf("\tmovzb %%al, %%rax\n");
+            break;
+        }
+        default:
+            assert(0);
+    }
+}
+
+void CodeGen::VisitorUnaryExprNode(UnaryExpr *node) {
+    switch (node->Uop) {
+        case UnaryOperator::Plus: {
+            node->Lhs->Accept(this);
+            break;
+        }
+        case UnaryOperator::Minus: {
+            node->Lhs->Accept(this);
+            printf("\tneg %%rax\n");
+            break;
+        }
+        case UnaryOperator::Star: {
+            GenAddr(node);
+            Load(node->Ty);
+            break;
+        }
+        case UnaryOperator::Amp: {
+            GenAddr(node->Lhs.get());
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void CodeGen::VisitorNumExprNode(NumExpr *node) {
+    printf("\tmovabs $%ld, %%rax\n", node->Value);
+}
+
+void CodeGen::VisitorVarExprNode(VarExpr *node) {
+    GenAddr(node);
+    Load(node->Ty);
+}
+
+void CodeGen::VisitorFuncCallExprNode(FuncCallExpr *node) {
+    for (auto &arg : node->Args) {
+        arg->Accept(this);
+        Push();
+    }
+    for (int i = node->Args.size(); i >= 0; i--) {
+        Pop(Reg64[i]);
+    }
+
+    std::string FuncName(node->FuncName);
+    printf("\tmov $0 %%rax\n");
+    printf("\tcall %s\n", FuncName.data());
+}
+
+void CodeGen::VisitorStmtExprNode(StmtExpr *node) {
+    for (auto &decl : node->Decls) {
+        decl->Accept(this);
+    }
+    for (auto &s : node->Stmts) {
+        s->Accept(this);
+    }
+}
+
+void CodeGen::VisitorMemberExprNode(MemberExpr *node) {
+    GenAddr(node);
+    Load(node->Ty);
+}
+
+void CodeGen::Push() {
+    printf("\tpush %%rax\n");
+    StackLevel++;
+}
+
+void CodeGen::Pop(const char *reg) {
+    printf("\tpop %s\n", reg);
+    StackLevel--;
+}
+
+void CodeGen::GenAddr(AstNode *node) {
+    if (auto varNode = dynamic_cast<VarExpr *>(node)) {
+        printf("\tlea %d(%%rbp), %%rax\n", varNode->Sym->Offset);
+    } else if (auto unaryNode = dynamic_cast<UnaryExpr *>(node)) {
+        if (unaryNode->Uop == UnaryOperator::Star) {
+            unaryNode->Lhs->Accept(this);
+        } else {
+            GenDiag(node->Tok->Location, "unaryNode must be dereference operation");
+        }
+    } else if (auto memberAccessNode = dynamic_cast<MemberExpr *>(node)) {
+        GenAddr(memberAccessNode->Lhs.get());
+        printf("\tadd $%d, %%rax\n", memberAccessNode->Fld->Offset);
+    }
+}
+
+void CodeGen::Load(std::shared_ptr<Type> ty) {
+    if (ty->IsArrayTy() || ty->IsRecordTy()) {
+        return;
+    }
+    if (ty->Size == 1) {
+        printf("\tmovsbq (%%rax), %%rax\n");
+    } else if (ty->Size == 2) {
+        printf("\tmovswq (%%rax), %%rax\n");
+    } else if (ty->Size == 4) {
+        printf("\tmovslq (%%rax), %%rax\n");
+    } else {
+        printf("\tmov (%%rax), %%rax\n");
+    }
+}
+
+void CodeGen::Store(std::shared_ptr<Type> ty) {
+    Pop("%rdi");
+    if (ty->Size == 1)
+        printf("\tmov %%al, (%%rdi)\n");
+    else if (ty->Size == 2)
+        printf("\tmov %%ax, (%%rdi)\n");
+    else if (ty->Size == 4)
+        printf("\tmov %%eax, (%%rdi)\n");
+    else if (ty->Size == 8)
+        printf("\tmov %%rax, (%%rdi)\n");
+    else {
+        printf("size = %d\n", ty->Size);
+        assert(0);
+    }
+}
