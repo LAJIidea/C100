@@ -149,7 +149,7 @@ void Lexer::GetNextChar() {
         CurChar = '\0';
         Cursor++;
     } else {
-        CurChar = SourceCode[Cursor];
+        CurChar = SourceCode[Cursor++];
     }
 }
 
